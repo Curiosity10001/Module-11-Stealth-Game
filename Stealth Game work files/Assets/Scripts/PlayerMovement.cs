@@ -10,18 +10,20 @@ public class PlayerMovement : MonoBehaviour
     [Header (" Public Parameter for multi-scrip")]
     public float timer = 0;
 
-    [Header ("Movement parameters")]
+    [Header ("Movement Parameters")]
     [SerializeField] float speed = 5f; 
     [SerializeField] float rotationSpeed = 60f;
-    [SerializeField] float jumpForce = 5f;
+    [SerializeField] float jumpForce = 3f;
+    [SerializeField] float downForce = 5f;
     [SerializeField] bool isJumping = false;
-  
+    [SerializeField] bool isFalling = false;
+    
     float lastJump;
     float deltaTimeJump = 1f;
 
     [Header("Floor Detection")]
     [SerializeField] bool isGrounded = false;
-    [SerializeField] float maxDistance = 1.9f;
+    [SerializeField] float maxDistance = 25f;
     [SerializeField] Transform frontRightRay;
     [SerializeField] Transform frontLeftRay;
     [SerializeField] Transform backRightRay;
@@ -42,7 +44,7 @@ public class PlayerMovement : MonoBehaviour
     bool HitGround4;
 
 
-
+    [Header ("Animation && Animator")]
     public Animator animator;
    
 
@@ -75,34 +77,38 @@ public class PlayerMovement : MonoBehaviour
         }
         else isGrounded = false;
 
+
         if (timer >= lastJump + deltaTimeJump)
         {
 
-            if (Input.GetButtonDown("Jump") && isGrounded)
-            {
-                
+            if (Input.GetButtonDown("Jump") && isGrounded && !isFalling)
+            {               
                 Jump();
-                lastJump = Time.time;
-              
+                lastJump = Time.time;            
             }
-            
         }
 
-        Debug.Log("rgbd y" + rgbd.position.y + " raycast Y " + onTheGround.y);
+     
+
+        if (rgbd.position.y > onTheGround.y + 0.2f && !isJumping && timer > lastJump + 0.15f)
+        {
+            rgbd.AddForce(Vector3.down * downForce);
+            isJumping = false;
+            isFalling = true;
+        }
+        else isFalling = false;
+
     }
     private void FixedUpdate()
     {
         moveDirection.y = rgbd.velocity.y;
         rgbd.velocity = new Vector3(moveDirection.x * speed, moveDirection.y, moveDirection.z * speed);
         TurnToCamForwardDirection();
-        
     }
 
     void Jump()
     {
-       rgbd.AddForce(Vector2.up * jumpForce) ;
-       isJumping = true;
-
+            rgbd.AddForce(Vector2.up * jumpForce, ForceMode.Impulse);
     }
     void TurnToCamForwardDirection()
     {
@@ -136,9 +142,6 @@ public class PlayerMovement : MonoBehaviour
             {
             onTheGround = (touchGround1.point + touchGround2.point+ touchGround3.point + touchGround4.point) / 4 ;
             }
-        
-       
-        
     }
   
 
