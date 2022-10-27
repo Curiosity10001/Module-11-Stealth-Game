@@ -13,13 +13,20 @@ public class PlayerMovement : MonoBehaviour
     [Header ("Movement Parameters")]
     [SerializeField] float speed = 5f; 
     [SerializeField] float rotationSpeed = 60f;
+    
+    float axisX;
+    float axisY;
+
+    [Header ("Jump parameter")]
     [SerializeField] float jumpForce = 3f;
     [SerializeField] float downForce = 5f;
     [SerializeField] bool isJumping = false;
     [SerializeField] bool isFalling = false;
-    
+    [SerializeField] bool fallToGround = false;
+
     float lastJump;
     float deltaTimeJump = 1f;
+
 
     [Header("Floor Detection")]
     [SerializeField] bool isGrounded = false;
@@ -66,7 +73,9 @@ public class PlayerMovement : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        moveDirection =  Camera.main.transform.forward * Input.GetAxis("Vertical") + Camera.main.transform.right * Input.GetAxis("Horizontal") ;
+        axisY = Input.GetAxis("Vertical");
+        axisX = Input.GetAxis("Horizontal");
+        moveDirection =  Camera.main.transform.forward * axisY + Camera.main.transform.right * axisX ;
         timer += Time.deltaTime;
 
         Grounded();
@@ -74,6 +83,7 @@ public class PlayerMovement : MonoBehaviour
         {
             isGrounded = true;
             isJumping = false;
+            isFalling = false;
         }
         else isGrounded = false;
 
@@ -81,7 +91,7 @@ public class PlayerMovement : MonoBehaviour
         if (timer >= lastJump + deltaTimeJump)
         {
 
-            if (Input.GetButtonDown("Jump") && isGrounded && !isFalling)
+            if (Input.GetButtonDown("Jump") && isGrounded )
             {               
                 Jump();
                 lastJump = Time.time;            
@@ -90,13 +100,32 @@ public class PlayerMovement : MonoBehaviour
 
      
 
-        if (rgbd.position.y > onTheGround.y + 0.2f && !isJumping && timer > lastJump + 0.15f)
+        if ( rgbd.position.y > onTheGround.y + 0.5f  && !isJumping && timer > lastJump + 0.15f)
         {
             rgbd.AddForce(Vector3.down * downForce);
             isJumping = false;
             isFalling = true;
+            fallToGround = false;
         }
-        else isFalling = false;
+        if (rgbd.position.y > onTheGround.y + 0.3f &&   isJumping && timer < lastJump + 0.15f)
+        {
+            rgbd.AddForce(Vector3.down * downForce);
+            isJumping = false;
+            isFalling = true;
+            fallToGround = true;
+        }
+        if (rgbd.position.y <= onTheGround.y + 0.5f  && !isJumping && timer > lastJump + 0.15f)
+        {
+            rgbd.AddForce(Vector3.down * downForce);
+            isJumping = false;
+            isFalling = true;
+            fallToGround = true;
+        }
+
+
+
+
+            AnimationStateActivation();
 
     }
     private void FixedUpdate()
@@ -109,6 +138,7 @@ public class PlayerMovement : MonoBehaviour
     void Jump()
     {
             rgbd.AddForce(Vector2.up * jumpForce, ForceMode.Impulse);
+
     }
     void TurnToCamForwardDirection()
     {
@@ -144,7 +174,27 @@ public class PlayerMovement : MonoBehaviour
             }
     }
   
+    void AnimationStateActivation()
+    {
+        animator.SetFloat("X", axisX);
+        animator.SetFloat("Y", axisY);
+        animator.SetBool("isJumping", isJumping);
+        animator.SetBool("isFalling", isFalling);
+        animator.SetBool("FallToGround", fallToGround);
 
+        if ( (axisX == 0 && axisY == 0) && isGrounded && !isJumping)
+        {
+            animator.SetBool("isIdle", true);
+            animator.SetBool("isMoving",false);
+        }
+        if((axisX > 0 || axisX < 0 || axisY > 0 || axisY < 0) && isGrounded && !isJumping)
+        {
+            animator.SetBool("isIdle", false);
+            animator.SetBool("isMoving", true);
+        }
+     
+    }
+        
 
 
 }
