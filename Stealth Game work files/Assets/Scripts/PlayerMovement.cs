@@ -82,10 +82,44 @@ public class PlayerMovement : MonoBehaviour
         TurnToCamForwardDirection();
         GroundMovement();
         Grounded();
-        
+
 
     }
+    void AnimationStateActivation()
+    {
+        //Axis values to know if walk or run if playing with gamepad (values are 0/1 if on keyboard so run only)
+        animator.SetFloat("X", axisX);
+        animator.SetFloat("Y", axisY);
 
+        //Pre existing bools to reuse for animator
+        animator.SetBool("isFalling", isFalling);
+        animator.SetBool("FallToGround", fallToGround);
+
+
+        // Axis state for Idle/Moving when not jumping
+        if (isGrounded && !isJumping && !isFalling && !fallToGround && animator.GetBool("StealthMode")==false)
+        {
+            animator.SetBool("isMoving", true);
+        }
+
+        // to prevent  Idle/Moving when Falling
+        if (isFalling)
+        {
+            animator.SetBool("isMoving", false);
+        }
+        if (Input.GetButtonDown("Jump"))
+        {
+            animator.SetTrigger("isJumping");
+        }
+
+        //Stealth activation
+        if (Input.GetButtonDown("Fire1"))
+        {
+            animator.SetBool("StealthMode",true);
+            animator.SetBool("isMoving", false);
+        }
+
+    }
     private void FixedUpdate()
     {
         // As long as nothing impact velocity the rigidbodystays on ground
@@ -104,66 +138,6 @@ public class PlayerMovement : MonoBehaviour
         moveDirection = Camera.main.transform.forward * axisY + Camera.main.transform.right * axisX;
 
     }
-
-    void JumpAndFall()
-    {
-        //Jump
-        if (Input.GetButtonDown("Jump") && isGrounded)
-        {
-            isJumping = true;
-            rgbd.AddForce(Vector2.up * jumpForce, ForceMode.Impulse);
-            lastJump = Time.time;
-        }
-        else isJumping = false;
-
-        //Jump +land
-        if (rgbd.position.y > onTheGround.y + 0.5f && timer > lastJump && timer < lastJump + jumpDuration && rgbd.velocity.y != 0)
-        {
-            rgbd.AddForce(Vector3.down * downForce);
-            isFalling = true;
-            fallToGround = false;
-        }
-
-        // Fall
-        if (rgbd.position.y > onTheGround.y + 0.3f && timer > lastJump + jumpDuration && rgbd.velocity.y != 0)
-        {
-            rgbd.AddForce(Vector3.down * downForce);
-            isJumping = false;
-            isFalling = true;
-            fallToGround = false;
-
-        }
-
-        //Fall+land
-        if (rgbd.position.y <= onTheGround.y + 0.4f  && rgbd.position.y >= onTheGround.y + 0.3f && !isJumping && rgbd.velocity.y != 0)
-         {
-             rgbd.AddForce(Vector3.down * downForce);
-             isFalling = true;
-             fallToGround = true;
-         }
-      
-
-    }
-    void TurnToCamForwardDirection()
-    {
-
-        Vector3 CamForward = Camera.main.transform.forward;
-
-        // We do not want the  player to fall on ground nor fly so Vertical axis = 0
-        CamForward.y = 0;
-
-        Quaternion rgbdLookAt = Quaternion.LookRotation(CamForward);
-        Quaternion rgbdRotationSpeed = Quaternion.RotateTowards(rgbd.rotation, rgbdLookAt, rotationSpeed * Time.fixedDeltaTime);
-
-        //Forces the rgbd to rotate to the value wanted
-        rgbd.MoveRotation(rgbdLookAt);
-
-        //Applies speed
-        rgbd.rotation = rgbdRotationSpeed;
-
-
-    }
-
     public void Grounded()
     {
         // Rays to detect Ground
@@ -192,26 +166,105 @@ public class PlayerMovement : MonoBehaviour
             isFalling = false;
             fallToGround = false;
         }
-        else isGrounded = false;
+        else
+        {
+            isGrounded = false;
+            rgbd.AddForce(Vector3.down * downForce);
+        }
+    }
+    void JumpAndFall()
+    {
+        //Jump
+        if (Input.GetButtonDown("Jump") && isGrounded )
+        {
+            isJumping = true;
+            rgbd.AddForce(Vector2.up * jumpForce, ForceMode.Impulse);
+            lastJump = Time.time;
+            isGrounded = false;
+            isFalling = false;
+        }
+
+        //to prevent bug of non-exit of is jumping
+        if (animator.GetCurrentAnimatorStateInfo(LayerMask.NameToLayer("Player")).IsName("Jump") == true && isGrounded)
+        {
+            Debug.Log(animator.GetCurrentAnimatorStateInfo(LayerMask.NameToLayer("Player")).IsName("Jump"));
+            rgbd.AddForce(Vector3.down * downForce);
+            isFalling = true;
+            fallToGround = true;
+        }
+
+        //Jump +land
+        if (rgbd.position.y > onTheGround.y + 0.5f && timer > lastJump && timer < lastJump + jumpDuration && rgbd.velocity.y != 0)
+        {
+            rgbd.AddForce(Vector3.down * downForce);
+            isFalling = true;
+            fallToGround = true;
+            isGrounded = false;
+        }
+
+        // Fall
+        if (rgbd.position.y > onTheGround.y + 0.5f && timer > lastJump + jumpDuration && rgbd.velocity.y != 0)
+        {
+            rgbd.AddForce(Vector3.down * downForce);
+            isJumping = false;
+            isFalling = true;
+            fallToGround = false;
+            isGrounded = false;
+
+        }
+
+        //Fall+land
+        if (rgbd.position.y <= onTheGround.y + 0.4f && rgbd.position.y >= onTheGround.y + 0.3f && !isJumping)
+        {
+            rgbd.AddForce(Vector3.down * downForce);
+            isFalling = true;
+            fallToGround = true;
+            isGrounded = false;
+        }
+
+        //to prevent bug of non-exit of is falling state
+        if(animator.GetCurrentAnimatorStateInfo(LayerMask.NameToLayer("Player")).IsName("Fall") == true && isGrounded)
+        {
+            Debug.Log(animator.GetCurrentAnimatorStateInfo(LayerMask.NameToLayer("Player")).IsName("Fall"));
+            isFalling = true;
+            fallToGround = true;
+        }
+
+      
+
+
+    }
+    void TurnToCamForwardDirection()
+    {
+
+        Vector3 CamForward = Camera.main.transform.forward;
+
+        // We do not want the  player to fall on ground nor fly so Vertical axis = 0
+        CamForward.y = 0;
+
+        Quaternion rgbdLookAt = Quaternion.LookRotation(CamForward);
+        Quaternion rgbdRotationSpeed = Quaternion.RotateTowards(rgbd.rotation, rgbdLookAt, rotationSpeed * Time.fixedDeltaTime);
+
+        //Forces the rgbd to rotate to the value wanted
+        rgbd.MoveRotation(rgbdLookAt);
+
+        //Applies speed
+        rgbd.rotation = rgbdRotationSpeed;
+
+
     }
 
-    void AnimationStateActivation()
+    
+
+  
+
+    private void OnTriggerEnter(Collider other)
     {
-        //Axis values to know if walk or run if playing with gamepad (values are 0/1 if on keyboard so run only)
-        animator.SetFloat("X", axisX);
-        animator.SetFloat("Y", axisY);
-
-        //Pre existing bools to reuse for animator
-        animator.SetBool("isFalling", isFalling);
-        animator.SetBool("FallToGround", fallToGround);
-        animator.SetBool("isJumping", isJumping);
-
-        // Axis state for Idle/Moving when not jumping
-        if (isGrounded && !isJumping && !isFalling)
-        {
-            animator.SetBool("isMoving", true);
+        //Trigger collider added to avoid sticking to walls
+        if(other.gameObject.layer == LayerMask.NameToLayer("Ground"))
+            {
+            rgbd.AddForce(Vector3.down * downForce);
         }
-       
     }
 
 
