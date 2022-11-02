@@ -57,8 +57,7 @@ public class PlayerMovement : MonoBehaviour
     [Header("Animation && Animator")]
     public Animator animator;
 
-
-
+ 
 
     private void Awake()
     {
@@ -82,7 +81,6 @@ public class PlayerMovement : MonoBehaviour
         TurnToCamForwardDirection();
         GroundMovement();
         Grounded();
-
 
     }
     void AnimationStateActivation()
@@ -112,12 +110,12 @@ public class PlayerMovement : MonoBehaviour
             animator.SetTrigger("isJumping");
         }
 
-        //Stealth activation
-        if (Input.GetButtonDown("Fire1"))
+        //Stealth activation button down if up stealth mode desactivated
+        if (Input.GetButton("Fire1"))
         {
             animator.SetBool("StealthMode",true);
             animator.SetBool("isMoving", false);
-        }
+        } else animator.SetBool("StealthMode", false);
 
     }
     private void FixedUpdate()
@@ -170,6 +168,41 @@ public class PlayerMovement : MonoBehaviour
         {
             isGrounded = false;
             rgbd.AddForce(Vector3.down * downForce);
+        }
+
+        //Detection of ground in stealth mode , ray need to be rotated
+        if (animator.GetBool("StealthMode") == true)
+        {
+            rayToGround1 = new Ray(frontRightRay.position, Vector3.forward);
+            rayToGround2 = new Ray(frontLeftRay.position, Vector3.forward);
+            rayToGround3 = new Ray(backRightRay.position, Vector3.forward);
+            rayToGround4 = new Ray(backLeftRay.position, Vector3.forward);
+
+            //Bool to  know that a collider has been hit 
+            HitGround1 = Physics.Raycast(rayToGround1, out touchGround1, maxDistance, LayerMask.GetMask("Ground"));
+            HitGround2 = Physics.Raycast(rayToGround2, out touchGround2, maxDistance, LayerMask.GetMask("Ground"));
+            HitGround3 = Physics.Raycast(rayToGround3, out touchGround3, maxDistance, LayerMask.GetMask("Ground"));
+            HitGround4 = Physics.Raycast(rayToGround4, out touchGround4, maxDistance, LayerMask.GetMask("Ground"));
+
+            //If  hit get the information of the center of the 4 points : it will be our comparison point to know if we are grounded
+            if (HitGround1 && HitGround2 && HitGround3 && HitGround4)
+            {
+                onTheGround = (touchGround1.point + touchGround2.point + touchGround3.point + touchGround4.point) / 4;
+            }
+
+            // Rigid body X position comparison to know if grounded /falling /jumping
+            if (rgbd.position.y <= onTheGround.y + 0.1f && rgbd.position.y >= onTheGround.y - 0.1f)
+            {
+                isGrounded = true;
+                isJumping = false;
+                isFalling = false;
+                fallToGround = false;
+            }
+            else
+            {
+                isGrounded = false;
+                rgbd.AddForce(Vector3.down * downForce);
+            }
         }
     }
     void JumpAndFall()
